@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<!-- By @toddeichel, with inspiration from @dechen. -->
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>pixoot - lovingly crafted pixels</title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+
+    <style type="text/css">
+      /* Resets */
+      html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, font, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td { margin: 0; padding: 0; border: 0; outline: 0; font-size: 100%; vertical-align: baseline; background: transparent; }
+      h1, h2, h3, h4, h5, h6 { font-weight: normal; }
+
+      body {
+        font-family: 'Helvetica', 'Arial', sans-serif;
+        text-align: center;
+        margin: 50px auto;
+        width: 500px;
+        height: 100%;
+        color: #444;
+        background-color: lightgray;
+        font-size: 12px;
+      }
+      
+      h1 {
+        font-size: 38px;
+        font-weight: bold;
+      }
+      
+      a         { color: #222; text-decoration: underline; }
+      a:link    { color: #222; text-decoration: underline; }
+      a:visited { color: #222; text-decoration: underline; }
+      a:hover   { color: #222; text-decoration: none; }
+      a:active  { color: #444; text-decoration: none; }
+      
+      
+      #result_image_container {
+        position: relative;
+        margin: 0 auto;
+        width: 100px;
+        height: 100px;
+        border: solid 1px #444;
+      }
+      
+      #example_text {
+        position: absolute; 
+        z-index: -1; 
+        font-size: 14px; 
+        margin: 20px 5px;
+      }
+      
+      
+      #explanation {
+        margin-top: 20px;
+      }
+      
+      #explanation p {
+        margin: 10px 0;
+        font-size: 16px;
+      }
+      
+      #content {
+        margin: 50px;
+        overflow: auto;
+      }
+      
+      #footer {
+        clear: both;
+        margin-top: 50px;
+      }
+      
+      #footer p {
+        margin: 12px 0;
+      }
+      
+      #footer .donate {
+        font-size: 16px;
+      }
+      
+      
+      #result {
+        float: right;
+      }
+      
+      #result .caption {
+        margin-bottom: 10px;
+        font-size: 11px;
+      }
+      
+      #transparency_input {
+        position: relative;
+      }
+      
+      #transparency_slider_container {
+        display: none;
+        position: absolute;
+        width: 150px;
+        padding: 10px 20px;
+        z-index: 10000;
+        border-width: 1px;
+        border-style: solid;
+        border-color: threedhighlight threedshadow threedshadow threedhighlight;
+        background: threedface;
+      }
+      
+      #inputs {
+        float: left;
+        text-align: left;
+        width: 220px;
+        margin: 10px auto;
+        font-size: 20px;
+      }
+      
+      div.input {
+        clear: both;
+        position: relative;
+        margin: 0 0 10px;
+      }
+      
+      div.input label {
+        cursor: pointer;
+        margin-right: 10px;
+      }
+      
+      div.input input[type="text"] {
+        border: 1px solid #999;
+        font-size: 20px;
+        text-align: center;
+        padding: 5px;
+        -moz-border-radius: 4px;
+        -webkit-border-radius: 4px;
+      }
+      
+      div.input input[type="text"]:focus {
+        border-color: #777;
+      }
+      
+      #color_input label         { margin-right: 30px; }
+      #color        { width: 80px; margin-left: 4px; }
+      #transparency { width: 42px; background-color: #eee; margin-right: 4px; }
+      
+    </style>
+    <link type="text/css" rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.7.0/themes/cupertino/jquery-ui.css">
+    
+    <script src="jscolor/jscolor.js" type="text/javascript"></script>
+    <script src="http://www.google.com/jsapi" type="text/javascript"></script>
+    <script type="text/javascript">
+      google.load("jquery", "1.4.1");
+      google.load("jqueryui", "1.7.2");
+
+      google.setOnLoadCallback(function () {
+        // update pixel on changes to inputs
+        jQuery('#color, #transparency').bind('change keyup', function () {
+          updatePixel();
+        });
+        
+        // set up slider
+        jQuery('#transparency_slider').slider({
+          min: 0,
+          max: 100,
+          step: 5,
+          // set initial value based on input
+          value: jQuery('#transparency').val(),
+          // keep input value in sync with slider position
+          stop: function (event, ui) {
+            jQuery('#transparency').val(ui.value).change();
+          }
+        });
+        
+        // keep slider position in sync with input value
+        jQuery('#transparency').change(function () {
+          jQuery('#transparency_slider').slider('option', 'value', jQuery(this).val());
+        });
+        
+        // show/hide transparency slider when input is focused/unfocused
+        jQuery('#transparency').click(function () {
+          jQuery('#transparency_slider_container').show();
+        });
+        jQuery(document).click(function (e) {
+          if (e.target.id == 'transparency' || e.target.id == 'transparency_slider_container') {
+            return false;
+          } else {
+            jQuery('#transparency_slider_container').hide();
+          }
+        });
+      });
+      
+      function updatePixel() {
+        var color = jQuery('#color').val();
+        var transparency = parseInt(jQuery('#transparency').val());
+        
+        // check some validation conditions first before sending request to server
+        if (color.length != 6)   { return false; }
+        if (isNaN(transparency)) { return false; }
+        
+        var new_image_url = '/pixel/' + color + '_' + transparency + '.png';
+        jQuery('#result_image').attr('src', new_image_url);
+        jQuery('#result_link').attr('href', new_image_url);
+        pageTracker._trackPageview(new_image_url);
+      }
+    </script>
+  </head>
+
+  <body>
+    <h1>Lovingly crafted pixels&hellip;</h1>
+    
+    <div id="explanation">
+      <p>Ever need a semi-transparent white or black pixel for a background?</p>
+      <p>No need to fire up Photoshop anymore... <br /> get your custom crafted pixels right here, quick and easy!</p>
+      <p>Just click inside the fields to adjust their values.</p>
+    </div>
+    
+    <div id="content">
+      <div id="inputs">
+        <div id="color_input" class="input string">
+          <label for="color">Color</label>
+          #<input id="color" name="color" class="color" type="text" maxlength="6" value="<%= @initial_color %>" />
+        </div>
+        
+        <div id="transparency_input" class="input string">
+          <label for="transparency">Transparency</label>
+          <input id="transparency" name="transparency" type="text" maxlength="3" value="<%= @initial_transparency %>" />%
+          <div id="transparency_slider_container">
+            <div id="transparency_slider"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="result">
+        <div id="result_image_container">
+          <p id="example_text">Example text that might be sitting behind your pixel.</p>
+          <img src="/pixel/<%= @initial_color %>_<%= @initial_transparency %>.png" id="result_image" width="100" height="100" />
+        </div>
+        <p class="caption"><a href="/pixel/<%= @initial_color %>_<%= @initial_transparency %>.png" id="result_link">right click to save</a></p>
+        <p class="disclaimer">(pixel enlarged to show color)</p>
+      </div>
+    </div>
+    
+    <div id="footer">
+      <p class="donate">
+        Did this help you out?
+        <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=7PHYJR8L7WWHL">Buy me a coffee!</a>
+        <a href="http://amzn.com/w/3NPOY2SLKROVW">Or a book!!</a>
+      </p>
+      <p>a <a href="http://motivitystudios.com/">motivity studios</a> production</p>
+    </div>
+    
+    <script type="text/javascript">
+    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+    </script>
+    <script type="text/javascript">
+    try {
+    var pageTracker = _gat._getTracker("UA-13263455-2");
+    pageTracker._trackPageview();
+    } catch(err) {}</script>
+  </body>
+</html>
