@@ -1,6 +1,3 @@
-require File.dirname(__FILE__) + '/vendor/gems/environment'
-Bundler.require_env
-
 set :views, File.dirname(__FILE__) + '/views'
 set :public, File.dirname(__FILE__) + '/public'
 
